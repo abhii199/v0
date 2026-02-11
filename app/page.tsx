@@ -1,7 +1,10 @@
-import Image from "next/image";
+import { Button } from "@/components/ui/button";
 
-export default function Home() {
-  return (
-    <div className="mt-8 text-center text-2xl min-h-screen"> Hello  V0 World</div>
-  );
+export default function Page() {
+return (
+  <>
+  <div className="text-3xl">Hii there</div>
+  <Button  className="bg-primary text-background si" variant={'outline'} size={'lg'}>Click me</Button>
+  </>
+)
 }
