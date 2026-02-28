@@ -23,7 +23,8 @@ const layout = async ({ children }: { children: React.ReactNode }) => {
 
         <Navbar />
 
-        <div className="flex-1 w-full mt-20">{children}</div>
+        <div className="flex-1 w-full mt-20 relative">{children}</div>
+
       </div>
     </main>
   );
