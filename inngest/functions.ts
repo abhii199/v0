@@ -1,8 +1,10 @@
 import { inngest } from "./client";
 import { Sandbox } from 'e2b'
-import { createAgent, gemini, createTool } from '@inngest/agent-kit'
+import { createAgent, gemini, createTool, createNetwork } from '@inngest/agent-kit'
 import z, { json } from "zod";
 import { err } from "inngest/types";
+import { PROMPT } from "@/system-prompt";
+import { lastAssistantTextMessage } from "./utils";
 
 export const codeAgentFunction = inngest.createFunction(
   { id: "code-agent" },
@@ -82,7 +84,7 @@ export const codeAgentFunction = inngest.createFunction(
       name: "readFile",
       description: "A tool that allows you to read a file in the sandbox.",
       parameters: z.object({
-        z.array(z.string().describe("The path of the file to read"))
+        files: z.array(z.string().describe("The path of the file to read"))
       }),
       handler: async ({ files }, { step }) => {
         return await step?.run("readFile", async () => {
@@ -107,20 +109,54 @@ export const codeAgentFunction = inngest.createFunction(
     const codeAgent = createAgent({
       name: 'code-agent',
       description: 'An agent that can run code in a sandbox',
-      system: 'You are a helpful assistant that executes code in a sandbox. You can run code in the sandbox and return the results.',
-      model: gemini({ model: "gemini-1.5-flash-8b" }),
+      system: PROMPT,
+      model: gemini({ model: "gemini-2.5-flash-lite" }),
       tools: [
         terminalTool,
         createOrUpdateFileTool,
         readFileTool
-      ]
+      ],
+      lifecycle: {
+        onResponse: async ({ result, network }) => {
+          const lastAssistantMessage = lastAssistantTextMessage(result)
+
+          if (lastAssistantMessage && network) {
+            if (lastAssistantMessage.includes("<task_summary>")) {
+              network.state.data.summary = lastAssistantMessage
+            }
+          }
+          return result
+        }
+      }
     })
+
+    const network = createNetwork({
+      name: "coding-agent-network",
+      description: "A network for the code agent to run in",
+      agents: [codeAgent],
+      maxIter: 10,
+      router: async ({ network }) => {
+        const summary = network.state.data.summary
+        if (summary) return
+        return codeAgent
+      }
+    })
+
+    const result = await network.run(event.data.value)
+
+    const isError = !result.state.data.summary || Object.keys(result.state.data.files || {}).length === 0
+
     const sandboxUrl = await step.run("get-sandbox-url", async () => {
       const sandbox = await Sandbox.connect(sandboxId)
       const host = sandbox.getHost(3000)
 
       return `http://${host}`
     })
-    return { message: `Hello World from Abhi` };
+    return {
+      url: sandboxUrl,
+      title: "Untitled",
+      files: result.state.data.files,
+      summary: result.state.data.summary,
+    };
   },
 );
