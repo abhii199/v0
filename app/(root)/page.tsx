@@ -8,7 +8,7 @@ export default function Page() {
           <h1 className="text-2xl md:text-5xl font-bold text-center">Build Something with ❤️</h1>
           <p className="text-lg md:text-xl text-muted-foreground text-center">Create apps and websites simple prompting...</p>
           <div className="max-w-3xl w-full">
-            {/* <PromptInputBox /> */}
+            <PromptInputBox />
           </div>
         </section>
       </div>
